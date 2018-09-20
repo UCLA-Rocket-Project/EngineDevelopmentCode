@@ -1,0 +1,37 @@
+{
+  "CdA_PRO_PFTI": {
+    "value": 0,
+    "length": 10,
+    "diameter": 3
+  },
+  "CdA_PRO_POTI": {
+    "value": 0,
+    "length": 10,
+    "diameter": 3
+  },
+  "CdA_PFTI_PFT": {
+    "value": 0,
+    "length": 10,
+    "diameter": 3
+  },
+  "CdA_PFT_PFTO": {
+    "value": 0,
+    "length": 10,
+    "diameter": 3
+  },
+    "CdA_PMFVI_PMFVO": {
+    "value": 0,
+    "length": 10,
+    "area": 24
+  },
+    "CdA_PFCI_PFM": {
+    "value": 0,
+    "length": 10,
+    "area": 24
+  },
+    "CdA_PFCI_PFCMT": {
+    "value": 0,
+    "length": 10,
+    "area": 24
+  }
+}
