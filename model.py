@@ -136,8 +136,8 @@ def run():
 
     NUM_THROAT_FFC_HOLES = 24
     DIA_THROAT_FFC_HOLES = 0.0135 * ureg.inch
-    Cd_PFCMT_PC = 0.7
-    CdA_PFCMT_PC = Cd_PFCMT_PC * (NUM_THROAT_FFC_HOLES * np.pi / 4 * DIA_THROAT_FFC_HOLES ** 2)
+    Cd_PFCI_PC = 0.7
+    CdA_PFCI_PC = Cd_PFCI_PC * (NUM_THROAT_FFC_HOLES * np.pi / 4 * DIA_THROAT_FFC_HOLES ** 2)
 
     # w5 components
     # CdA_PRO_POTI
@@ -190,7 +190,7 @@ def run():
     # Recall, alpha = (12 / CdA ) ** 2 * 1 / (2*g*rho)
     a2cda = CdA_sum_series([CdA_PFT_PFTO, CdA_PFTO_PMFVI,CdA_PMFVI_PMFVO, CdA_PMFVO_PREGI, CdA_PREGI_PFCI])
     a3cda = CdA_sum_series([CdA_PFCI_PFM, CdA_PFM_PC])
-    a4cda = CdA_PFCMT_PC
+    a4cda = CdA_PFCI_PC
     a5cda = CdA_sum_series([CdA_POT_POTO, CdA_POTO_PMOVI, CdA_PMOVI_PMOVO, CdA_PMOVO_POM, CdA_POM_PC])
 
     a2 = (12 / a2cda) ** 2 * 1 / (2 * G_const * RP1_Density_DEFAULT)
