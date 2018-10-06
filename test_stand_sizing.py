@@ -22,6 +22,9 @@ ABS_ROUGHNESS_SS = 0.0197E-3 * ureg.inch
 PERCENT_FFC = 11.5 # percent fuel film coolant
 G_const = 32.174
 
+w_fu = 7
+w_ox = 15.4
+
 def run():
     # w2 components
     # CdA_PRO_PFTI
@@ -38,8 +41,8 @@ def run():
     #   CdA of main fuel valve
     # CdA_PMFVO_PFCI
     #   Lines leading to film coolant inlet branch
-    w2guess = 1.417 * (ureg.lb / ureg.s)
-    D2 = 0.5 * ureg.inch
+    w2guess = w_fu * (ureg.lb / ureg.s)
+    D2 = 0.75 * ureg.inch
     Re2 = (4 / np.pi) * (w2guess / (D2.to('ft') * RP1_DynamicViscosity_DEFAULT))
     f2 = fl.friction_factor(Re2, eD=ABS_ROUGHNESS_SS/D2)
 
@@ -53,7 +56,7 @@ def run():
     K_PFTO_PMFVI += fl.fittings.bend_rounded(D2, angle=90, fd=f2, bend_diameters=5)
     CdA_PFTO_PMFVI = K_to_CdA(K_PFTO_PMFVI, D=D2)
 
-    K_PMFVI_PMFVO = fl.fittings.K_ball_valve_Crane(D1=D2,D2=D2, angle=0, fd=f2)
+    K_PMFVI_PMFVO = fl.fittings.K_ball_valve_Crane(D1=D2*0.8,D2=D2, angle=0, fd=f2)
     CdA_PMFVI_PMFVO = K_to_CdA(K_PMFVI_PMFVO, D=D2)
 
     K_PMFVO_PREGI = fl.K_from_f(f2, L=(3.5*ureg.ft).to('in'), D=D2)
@@ -66,20 +69,33 @@ def run():
     # PITCH_NOZZLE_OUTLET = (R_NOZZLE_EXIT - (R_THROAT + RDIFF)) / NUMCOILS_NOZZLE
 
     # Nozzle "spiral"
-    CHAMBER_THICKNESS = 0.070 * ureg.inch
-    DIA_THROAT = 1.658 * ureg.inch + 2 * CHAMBER_THICKNESS
-    R_THROAT = DIA_THROAT / 2
-    DIA_NOZZLE_EXIT = 3.380 * ureg.inch + 2 * CHAMBER_THICKNESS
-    R_NOZZLE_EXIT = DIA_NOZZLE_EXIT/2
-    COOLING_CHANNEL_HEIGHT = 0.08 * ureg.inch
-    CHANNEL_WIDTH_NOZZLE = 2 * ureg.inch # Spacing between each coil
-    CHANNEL_WIDTH_THROAT = 1.1 * ureg.inch
+    THROAT_COOLING_VELOCITY = 40 * ureg.ft / ureg.s
+    NOZZLE_CHAMBER_COOLING_VELOCITY =  20 * ureg.ft / ureg.s
+    COOLING_CHANNEL_HEIGHT = 0.3 * ureg.inch
+    CHANNEL_WIDTH_NOZZLE = (w2guess / (RP1_Density_DEFAULT * NOZZLE_CHAMBER_COOLING_VELOCITY * COOLING_CHANNEL_HEIGHT)).to('in')
+    CHANNEL_WIDTH_THROAT = (w2guess / (RP1_Density_DEFAULT * THROAT_COOLING_VELOCITY * COOLING_CHANNEL_HEIGHT)).to('in')
+    # Spacing between each coil
     CHANNEL_WIDTH_HEAD = CHANNEL_WIDTH_NOZZLE
+
+    CHAMBER_THICKNESS = 0.15 * ureg.inch
+    CHAMBER_PRESSURE = 300 * ureg.psi
+    mdot_total = (w_fu + w_ox) * ureg.lb/ureg.s
+    cstar = (getCstar(w_ox, w_fu) * ureg.m / ureg.s).to('ft / s')
+    AREA_THROAT = ((mdot_total * cstar) / CHAMBER_PRESSURE).to('in ** 2')
+    ID_THROAT = np.sqrt(4 * AREA_THROAT / np.pi)
+    EXPANSION_RATIO = 4.15
+    CONTRACTION_RATIO = 6
+    DIA_THROAT = ID_THROAT + 2 * CHAMBER_THICKNESS
+    R_THROAT = DIA_THROAT / 2
+    AREA_NOZZLE_EXIT = AREA_THROAT * EXPANSION_RATIO
+    DIA_NOZZLE_EXIT = np.sqrt(4 * AREA_NOZZLE_EXIT / np.pi) + 2 * CHAMBER_THICKNESS
+    R_NOZZLE_EXIT = DIA_NOZZLE_EXIT/2
 
     # Radius where channel width is decreased in order to increase fluid velocity and provide more cooling
     # In reality this is a gradual change, but for simplicity an average width will be taken with an abrupt change
     R_WIDTHCHANGE = R_THROAT + (R_NOZZLE_EXIT - R_THROAT) * 0.5
-    DIA_CHAMBER = 4.06 * ureg.inch + 2 * CHAMBER_THICKNESS
+    AREA_CHAMBER = AREA_THROAT * CONTRACTION_RATIO
+    DIA_CHAMBER = np.sqrt(4 * AREA_CHAMBER / np.pi ) + 2 * CHAMBER_THICKNESS
     R_CHAMBER = DIA_CHAMBER / 2
 
     DH_NOZZLE = getHydraulicDiameterRectangle(COOLING_CHANNEL_HEIGHT, CHANNEL_WIDTH_NOZZLE) # Hydraulic Diameter, approx
@@ -142,28 +158,35 @@ def run():
     # A_PFM_PC = np.pi / 4 * (NUM_FUEL_HOLES * DIA_FUEL_HOLES ** 2 + NUM_HEAD_FFC_HOLES * DIA_HEAD_FFC_HOLES ** 2 +
     #                         NUM_FUEL_SHOWERHEAD_HOLES * DIA_FUEL_SHOWEHEAD_HOLES ** 2)
     # CdA_PFM_PC = Cd_PFM_PC * A_PFM_PC
-    NUM_FUEL_HOLES = 52
-    DIA_FUEL_HOLES = 0.034 * ureg.inch
-    NUM_HEAD_FFC_HOLES = 32
-    DIA_HEAD_FFC_HOLES = 0.0135 * ureg.inch
-    Cd_PFM_PC = 0.78 # Determined empirically through waterflow data
-    A_HEAD_FFC_HOLES = np.pi / 4 * NUM_HEAD_FFC_HOLES * DIA_HEAD_FFC_HOLES ** 2
-    CdA_HEAD_FFC_HOLES = Cd_PFM_PC * A_HEAD_FFC_HOLES
-    A_FUEL_HOLES = np.pi / 4 * NUM_FUEL_HOLES * DIA_FUEL_HOLES ** 2
+    INJECTOR_PRESSURE_DROP = CHAMBER_PRESSURE*0.26
+    Cd_PFM_PC = 0.7
+    A_FUEL_HOLES = ((12 * w2guess / Cd_PFM_PC) / np.sqrt(2 * G_const * RP1_Density_DEFAULT * INJECTOR_PRESSURE_DROP)).magnitude * ureg.inch ** 2
+    NUM_FUEL_HOLES = 150
+    DIA_FUEL_HOLES = np.sqrt(4 / np.pi * A_FUEL_HOLES/NUM_FUEL_HOLES)
+    # NUM_HEAD_FFC_HOLES = 32
+    # DIA_HEAD_FFC_HOLES = 0.0135 * ureg.inch
+
+    # A_HEAD_FFC_HOLES = np.pi / 4 * NUM_HEAD_FFC_HOLES * DIA_HEAD_FFC_HOLES ** 2
+    # CdA_HEAD_FFC_HOLES = Cd_PFM_PC * A_HEAD_FFC_HOLES
     CdA_FUEL_HOLES = Cd_PFM_PC * A_FUEL_HOLES
-    CdA_PFM_PC = CdA_FUEL_HOLES + CdA_HEAD_FFC_HOLES
+    CdA_PFM_PC = CdA_FUEL_HOLES
 
     # w4 components
     # CdA_PFCI_PC
     #   CdA of chamber holes
     w4guess = w2guess * (PERCENT_FFC/100.0)
+    Cd_PFCI_PC = 0.7
+    THROAT_FFC_VELOCITY = 52 * ureg.ft / ureg.s
+    THROAT_FFC_DP = (144 * THROAT_FFC_VELOCITY.magnitude ** 2)/(2 * G_const * RP1_Density_DEFAULT.magnitude)
+
     # D4 = 0.25 * ureg.inch
     # Re4 = (4 / np.pi) * (w4guess / (DH_THROAT.to('ft') * RP1_DynamicViscosity_DEFAULT) )
     # f4 = fl.friction_factor(Re4, eD=ABS_ROUGHNESS_SS/DH_THROAT)
+    A_THROAT_FFC_HOLES = ((12 * w4guess / Cd_PFCI_PC) / np.sqrt(
+        2 * G_const * RP1_Density_DEFAULT * THROAT_FFC_DP)).magnitude * ureg.inch ** 2
     NUM_THROAT_FFC_HOLES = 24
-    DIA_THROAT_FFC_HOLES = 0.0135 * ureg.inch
-    Cd_PFCI_PC = 0.8
-    A_THROAT_FFC_HOLES = (NUM_THROAT_FFC_HOLES * np.pi / 4 * DIA_THROAT_FFC_HOLES ** 2)
+    DIA_FUEL_HOLES = np.sqrt(4 / np.pi * A_THROAT_FFC_HOLES / NUM_THROAT_FFC_HOLES)
+
     CdA_PFCI_PC = Cd_PFCI_PC * A_THROAT_FFC_HOLES
 
     # w5 components
@@ -181,8 +204,8 @@ def run():
     #   CdA of lines leading to fuel manifold
     # CdA_POM_PC
     #   CdA of ox injector
-    w5guess = 2.53 * (ureg.lb / ureg.s)
-    D5 = 0.5 * ureg.inch
+    w5guess = w_ox * (ureg.lb / ureg.s)
+    D5 = 0.75 * ureg.inch
     Re5 = (4 / np.pi) * (w5guess / (D5.to('ft') * LOX_DynamicViscosity_DEFAULT))
     f5 = fl.friction_factor(Re5, eD=ABS_ROUGHNESS_SS/D5)
 
@@ -195,7 +218,7 @@ def run():
     K_POTO_PMOVI += fl.fittings.bend_rounded(D5, angle=90, fd=f5, bend_diameters=5)
     CdA_POTO_PMOVI = K_to_CdA(K_POTO_PMOVI, D=D5)
 
-    K_PMOVI_PMOVO = fl.fittings.K_ball_valve_Crane(D1=D5,D2=D5, angle=0, fd=f5)
+    K_PMOVI_PMOVO = fl.fittings.K_ball_valve_Crane(D1=D5*0.8,D2=D5, angle=0, fd=f5)
     CdA_PMOVI_PMOVO = K_to_CdA(K_PMOVI_PMOVO, D=D5)
 
     K_PMOVO_POM = fl.K_from_f(f5, L=(3*ureg.ft).to('in'), D=D5)
@@ -208,10 +231,12 @@ def run():
     # CdA_POM_PC = NUM_OX_HOLES * np.pi/4 * DIA_OX_HOLES ** 2 * Cd_POM_PC
 
     # BPL 2018-2019 INJECTOR GEOMETRIES
-    NUM_OX_HOLES = 24
-    DIA_OX_HOLES = 0.067 * ureg.inch
+
     Cd_POM_PC = 0.7
-    CdA_POM_PC = NUM_OX_HOLES * np.pi/4 * DIA_OX_HOLES ** 2 * Cd_POM_PC
+    A_OX_HOLES = ((12 * w5guess / Cd_POM_PC) / np.sqrt(2 * G_const * LOX_Density_DEFAULT * INJECTOR_PRESSURE_DROP)).magnitude * ureg.inch ** 2
+    NUM_OX_HOLES = 150
+    DIA_OX_HOLES = np.sqrt(4 / np.pi * A_OX_HOLES/NUM_OX_HOLES)
+    CdA_POM_PC = Cd_POM_PC * A_OX_HOLES
 
     # Get leg alpha CdA's
     # Recall, alpha = (12 / CdA ) ** 2 * 1 / (2*g*rho)
@@ -227,12 +252,30 @@ def run():
     a4 = (12 / a4cda) ** 2 * 1 / (2 * G_const * RP1_Density_DEFAULT)
     a5 = (12 / a5cda) ** 2 * 1 / (2 * G_const * LOX_Density_DEFAULT)
 
+    # Estimated DP's (based on flow rate guesses/targets)
+    print('Target DP\'s based on CdA, flow rate')
+    DP_POTO_PMOVIg = CdA_to_DP(CdA_POTO_PMOVI, w5guess, LOX_Density_DEFAULT)
+    DP_PMOVI_PMOVOg = CdA_to_DP(CdA_PMOVI_PMOVO, w5guess, LOX_Density_DEFAULT)
+    DP_PMOVO_POMg = CdA_to_DP(CdA_PMOVO_POM, w5guess, LOX_Density_DEFAULT)
+    DP_POM_PCg = CdA_to_DP(CdA_POM_PC, w5guess, LOX_Density_DEFAULT)
+
+    DP_PFTO_PMFVIg = CdA_to_DP(CdA_PFTO_PMFVI, w2guess, RP1_Density_DEFAULT)
+    DP_PMFVI_PMFVOg = CdA_to_DP(CdA_PMFVI_PMFVO, w2guess, RP1_Density_DEFAULT)
+    DP_PMFVO_PREGIg = CdA_to_DP(CdA_PMFVO_PREGI, w2guess, RP1_Density_DEFAULT)
+    DP_PREGI_PFCIg = CdA_to_DP(CdA_PREGI_PFCI, w2guess, RP1_Density_DEFAULT)
+    DP_PFCI_PCg = CdA_to_DP(CdA_PFCI_PC, w4guess, RP1_Density_DEFAULT)
+    DP_PFCI_PFMg = CdA_to_DP(CdA_PFCI_PFM, w3guess, RP1_Density_DEFAULT)
+    DP_PFM_PCg = CdA_to_DP(CdA_PFM_PC, w3guess, RP1_Density_DEFAULT)
+    DP_PFTO_PREGIg = DP_PFTO_PMFVIg+DP_PMFVI_PMFVOg+DP_PMFVO_PREGIg
+
     w1guess = w2guess + w5guess
     PCguess = 300 * ureg.psi
     guessarr = (w1guess.magnitude, w2guess.magnitude, w3guess.magnitude, w4guess.magnitude, w5guess.magnitude, PCguess.magnitude)
-    PORO = 410 * ureg.psi
-    PFRO = 550 * ureg.psi
-    DIA_THROAT = 1.658 * ureg.inch
+    PORO_guess = PCguess.magnitude + (a5 * w5guess ** 2).magnitude
+    PFRO_guess = PCguess.magnitude + (a3 * w3guess ** 2).magnitude + (a2 * w2guess ** 2).magnitude
+    PORO = 458 * ureg.psi
+    PFRO = 562 * ureg.psi
+    DIA_THROAT = ID_THROAT
     At = np.pi / 4 * DIA_THROAT ** 2
 
     # cstar = (1805 * ureg.m / ureg.s).to('ft / s')
@@ -242,19 +285,21 @@ def run():
     sol = sp.fsolve(equations, guessarr, args=data)
     w1, w2, w3, w4, w5, PC = sol
     w3_main = w3 * CdA_FUEL_HOLES / CdA_PFM_PC
-    w3_head_ffc = w3 * CdA_HEAD_FFC_HOLES / CdA_PFM_PC
+    # w3_head_ffc = w3 * CdA_HEAD_FFC_HOLES / CdA_PFM_PC
     DP_PREGI_PFM = CdA_to_DP(CdA_PREGI_PFCI, w2, rho=RP1_Density_DEFAULT) + CdA_to_DP(CdA_PFCI_PFM, w3, rho=RP1_Density_DEFAULT)
     DP_PFM_PC = CdA_to_DP(CdA_PFM_PC, w3, rho=RP1_Density_DEFAULT)
-    DP_PFCI_PC = CdA_to_DP(CdA_PFCI_PC, w4, rho=RP1_Density_DEFAULT)
+    DP_POM_PC = CdA_to_DP(CdA_POM_PC, w5, rho=LOX_Density_DEFAULT)
+
     print('Total mdot: '+str(w1 * ureg.lb / ureg.s))
     print('Total fuel mdot: '+str(w2 * ureg.lb / ureg.s))
     print('Total Ox mdot: '+str(w5 * ureg.lb / ureg.s))
     print('Mixture Ratio: '+str(w5/w2))
     # print('Total throat FFC mdot: '+str(w4 * ureg.lb / ureg.s))
     print('Percent throat FFC: '+str(w4/w2*100))
-    print('Percent head FFC: '+str(w3_head_ffc / w2 * 100))
+    # print('Percent head FFC: '+str(w3_head_ffc / w2 * 100))
     print('Regen pressure drop: '+str(DP_PREGI_PFM))
     print('Fuel Injector Pressure Drop: '+str(DP_PFM_PC))
+    print('Ox Injector Pressure Drop: '+str(DP_POM_PC))
     print('Chamber Pressure: '+str(PC * ureg.psi))
     print('Cstar: '+str(getCstar(w5, w2) * ureg.m / ureg.s))
     print('Thrust: '+str((PC * ureg.psi * At * ct).to('lbf')))
@@ -287,7 +332,7 @@ def getHydraulicDiameterRectangle(a, b):
 #     return fl.K_to_Cv(K, D) / 38.0
 
 def K_to_CdA(K, D):
-    return 1 / np.sqrt(K) * np.pi * D ** 2
+    return 1 / np.sqrt(K) * np.pi / 4 * D ** 2
 
 def CdA_sum_series(CdA_arr):
     denom = 0
@@ -296,14 +341,14 @@ def CdA_sum_series(CdA_arr):
     return 1 / np.sqrt(denom)
 
 def CdA_to_DP(CdA, w, rho):
-    return (12 * w / CdA) ** 2 * 1 / (2 * G_const * rho)
+    return (12 * magnitude(w) / magnitude(CdA)) ** 2 * 1 / (2 * G_const * magnitude(rho))
 
 def magnitude(val):
     try:
         x = val.magnitude
     except:
         x = val
-    return val
+    return x
 
 if __name__ == '__main__':
     run()
