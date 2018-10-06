@@ -16,8 +16,8 @@ LOX_Density_DEFAULT = 75.038409 * ureg.lb / (ureg.ft ** 3)
 # Source: https://www.sciencedirect.com/science/article/pii/S0011227507001506
 
 
-ABS_ROUGHNESS_ALUMINUM = 6.56E-6 * ureg.inch# Source: https://www.engineeringtoolbox.com/surface-roughness-ventilation-ducts-d_209.html
-ABS_ROUGHNESS_SS = 0.0197E-3 * ureg.inch
+ABS_ROUGHNESS_ALUMINUM = (6.56E-6 * ureg.feet).to('inch')# Source: https://www.engineeringtoolbox.com/surface-roughness-ventilation-ducts-d_209.html
+ABS_ROUGHNESS_SS = (0.0197E-3 * ureg.feet).to('inch')
 PERCENT_FFC = 11.5 # percent fuel film coolant
 G_const = 32.174
 
