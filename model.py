@@ -12,7 +12,6 @@ RP1_DynamicViscosity_DEFAULT = 11E-4 * ureg.lb / (ureg.ft * ureg.s)
 LOX_DynamicViscosity_DEFAULT = (284.9E-6 * ureg.Pa * ureg.s).to('lb / (ft * s)')
 HE_DynamicViscosity_DEFAULT = (2.10E-5 * ureg.Pa * ureg.s).to('lb / (ft * s)')
 # Source: https://www.sciencedirect.com/science/article/pii/S0011227507001506
-
 RP1_Density_DEFAULT = 51.4 * ureg.lb / (ureg.ft ** 3)
 LOX_Density_DEFAULT = 75.038409 * ureg.lb / (ureg.ft ** 3)
 # Source: https://www.sciencedirect.com/science/article/pii/S0011227507001506
