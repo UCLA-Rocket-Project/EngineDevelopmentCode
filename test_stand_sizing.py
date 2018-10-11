@@ -17,8 +17,8 @@ RP1_Density_DEFAULT = 51.4 * ureg.lb / (ureg.ft ** 3)
 LOX_Density_DEFAULT = 75.038409 * ureg.lb / (ureg.ft ** 3)
 # Source: https://www.sciencedirect.com/science/article/pii/S0011227507001506
 
-ABS_ROUGHNESS_ALUMINUM = 6.56E-6 * ureg.inch# Source: https://www.engineeringtoolbox.com/surface-roughness-ventilation-ducts-d_209.html
-ABS_ROUGHNESS_SS = 0.0197E-3 * ureg.inch
+ABS_ROUGHNESS_ALUMINUM = (6.56E-6 * ureg.feet).to('inch')# Source: https://www.engineeringtoolbox.com/surface-roughness-ventilation-ducts-d_209.html
+ABS_ROUGHNESS_SS = (0.0197E-3 * ureg.inch).to('inch')
 PERCENT_FFC = 11.5 # percent fuel film coolant
 G_const = 32.174
 
@@ -42,7 +42,7 @@ def run():
     # CdA_PMFVO_PFCI
     #   Lines leading to film coolant inlet branch
     w2guess = w_fu * (ureg.lb / ureg.s)
-    D2 = 0.75 * ureg.inch
+    D2 = 0.5 * ureg.inch
     Re2 = (4 / np.pi) * (w2guess / (D2.to('ft') * RP1_DynamicViscosity_DEFAULT))
     f2 = fl.friction_factor(Re2, eD=ABS_ROUGHNESS_SS/D2)
 
