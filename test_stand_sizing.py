@@ -25,6 +25,11 @@ G_const = 32.174
 w_fu = 7
 w_ox = 15.4
 
+# Tubing geometries
+t2 = 0.049
+D2_OD = 1.0
+t5 = 0.049
+D5_OD = 1.0
 def run():
     # w2 components
     # CdA_PRO_PFTI
@@ -42,7 +47,8 @@ def run():
     # CdA_PMFVO_PFCI
     #   Lines leading to film coolant inlet branch
     w2guess = w_fu * (ureg.lb / ureg.s)
-    D2 = 0.5 * ureg.inch
+
+    D2 = (D2_OD - 2*t2) * ureg.inch
     Re2 = (4 / np.pi) * (w2guess / (D2.to('ft') * RP1_DynamicViscosity_DEFAULT))
     f2 = fl.friction_factor(Re2, eD=ABS_ROUGHNESS_SS/D2)
 
@@ -205,7 +211,8 @@ def run():
     # CdA_POM_PC
     #   CdA of ox injector
     w5guess = w_ox * (ureg.lb / ureg.s)
-    D5 = 0.75 * ureg.inch
+
+    D5 =  (D5_OD - 2*t5) * ureg.inch
     Re5 = (4 / np.pi) * (w5guess / (D5.to('ft') * LOX_DynamicViscosity_DEFAULT))
     f5 = fl.friction_factor(Re5, eD=ABS_ROUGHNESS_SS/D5)
 
@@ -258,6 +265,7 @@ def run():
     DP_PMOVI_PMOVOg = CdA_to_DP(CdA_PMOVI_PMOVO, w5guess, LOX_Density_DEFAULT)
     DP_PMOVO_POMg = CdA_to_DP(CdA_PMOVO_POM, w5guess, LOX_Density_DEFAULT)
     DP_POM_PCg = CdA_to_DP(CdA_POM_PC, w5guess, LOX_Density_DEFAULT)
+    DP_OX_LINES = DP_POTO_PMOVIg + DP_PMOVI_PMOVOg + DP_PMOVO_POMg
 
     DP_PFTO_PMFVIg = CdA_to_DP(CdA_PFTO_PMFVI, w2guess, RP1_Density_DEFAULT)
     DP_PMFVI_PMFVOg = CdA_to_DP(CdA_PMFVI_PMFVO, w2guess, RP1_Density_DEFAULT)
@@ -266,7 +274,7 @@ def run():
     DP_PFCI_PCg = CdA_to_DP(CdA_PFCI_PC, w4guess, RP1_Density_DEFAULT)
     DP_PFCI_PFMg = CdA_to_DP(CdA_PFCI_PFM, w3guess, RP1_Density_DEFAULT)
     DP_PFM_PCg = CdA_to_DP(CdA_PFM_PC, w3guess, RP1_Density_DEFAULT)
-    DP_PFTO_PREGIg = DP_PFTO_PMFVIg+DP_PMFVI_PMFVOg+DP_PMFVO_PREGIg
+    DP_FUEL_LINES = DP_PFTO_PMFVIg+DP_PMFVI_PMFVOg+DP_PMFVO_PREGIg
 
     w1guess = w2guess + w5guess
     PCguess = 300 * ureg.psi
